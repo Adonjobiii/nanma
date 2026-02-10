@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canteen Expense Dashboard</title>
+
+<style>
+:root {
+  --bg:#f5f7fb; --card:#ffffff; --text:#111827; --muted:#6b7280;
+  --primary:#2563eb; --danger:#dc2626; --border:#e5e7eb;
+}
+.dark {
+  --bg:#0b1220; --card:#111827; --text:#f9fafb;
+  --muted:#9ca3af; --primary:#3b82f6; --border:#1f2937;
+}
+*{box-sizing:border-box;font-family:Inter,Segoe UI,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text)}
+/* Navbar */
+.navbar{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:14px 20px;display:flex;justify-content:space-between;align-items:center
+}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{font-size:26px}
+.navbar h1{margin:0;font-size:18px}
+.navbar small{color:var(--muted)}
+.navbar button{background:none;border:none;font-size:20px}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;padding:15px}
+.stat-card{
+  background:var(--card);border-radius:14px;padding:18px;
+  box-shadow:0 8px 20px rgba(0,0,0,.05)
+}
+.stat-card p{margin:0;font-size:13px;color:var(--muted)}
+.stat-card h2{margin-top:8px;font-size:26px}
+/* Grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:15px}
+/* Card */
+.card{
+  background:var(--card);border-radius:14px;padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.06)
+}
+.card h3{margin-top:0}
+/* Form */
+label{display:block;margin-top:12px;font-weight:600}
+select{
+  width:100%;padding:10px;margin-top:6px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg);color:var(--text)
+}
+/* Quantity */
+.qty{display:flex;justify-content:center;align-items:center;margin:15px 0}
+.qty button{width:42px;height:42px;font-size:20px}
+.qty span{margin:0 18px;font-size:18px;font-weight:bold}
+/* Buttons */
+.btn-primary{
+  width:100%;padding:12px;background:var(--primary);
+  color:#fff;border:none;border-radius:10px;font-size:15px
+}
+.btn-danger{
+  width:calc(100% - 30px);margin:20px 15px;padding:12px;
+  background:var(--danger);color:#fff;border:none;border-radius:10px;font-size:15px
+}
+/* List */
+.item-list{list-style:none;padding:0}
+.item-list li{padding:8px 0;border-bottom:1px solid var(--border)}
+/* Summary */
+.summary{margin:0 15px 20px}
+#dailySummary div{
+  display:flex;justify-content:space-between;padding:8px 0;
+  border-bottom:1px dashed var(--border)
+}
+/* Mobile */
+@media(max-width:768px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+
+<header class="navbar">
+  <div class="brand">
+    <span class="logo">☕</span>
+    <div>
+      <h1>Canteen Expense</h1>
+      <small>Personal Dashboard</small>
+    </div>
+  </div>
+  <button id="darkToggle">🌙</button>
+</header>
+
+<section class="stats">
+  <div class="stat-card">
+    <p>Today’s Spend</p>
+    <h2>₹ <span id="total">0</span></h2>
+  </div>
+  <div class="stat-card">
+    <p>Date</p>
+    <h2 id="todayDate"></h2>
+  </div>
+</section>
+
+<main class="grid">
+  <section class="card">
+    <h3>Add Item</h3>
+    <label>Category</label>
+    <select id="category"></select>
+
+    <label>Item</label>
+    <select id="item"></select>
+
+    <label>Quantity</label>
+    <div class="qty">
+      <button onclick="decrease()">−</button>
+      <span id="qty">1</span>
+      <button onclick="increase()">+</button>
+    </div>
+
+    <button class="btn-primary" onclick="addItem()">Add Expense</button>
+  </section>
+
+  <section class="card">
+    <h3>Today’s Items</h3>
+    <ul id="list" class="item-list"></ul>
+  </section>
+</main>
+
+<section class="card summary">
+  <h3>Daily Summary</h3>
+  <div id="dailySummary"></div>
+</section>
+
+<button class="btn-danger" onclick="newDay()">Start New Day</button>
+
+<script>
+const MENU={
+  "Juice":{"Lime":7,"Grape":16,"Watermelon":12,"Pineapple":16,"Papaya":16,"Shama":16},
+  "Tea Products":{"Kattan":4,"Chaya":5,"Lime Tea":6,"Bru Coffee":10,"Milk":12,"Horlicks":15,"Boost":15},
+  "Snacks":{
+    "Parippu Vada":6,"Uzhunu Vada":6,"Ulli Vada":6,"Mutta Bhaji":6,
+    "Kaya Bhaji":6,"Mulaku Bhaji":6,"Kozhakatta":6,"Vattapathiri":6,
+    "Pazhampori":6,"Mutta":8,"Samosa / Neeyappam":8,"Cutlet (Veg)":8,
+    "Cutlet (Non-Veg)":16,"Chicken Roll":20,
+    "Omelette (Single)":12,"Omelette (Double)":20
+  }
+};
+
+let qty=1,todayTotal=0;
+const today=new Date().toISOString().slice(0,10);
+document.getElementById("todayDate").textContent=today;
+
+const category=document.getElementById("category"),
+      item=document.getElementById("item"),
+      list=document.getElementById("list"),
+      totalSpan=document.getElementById("total"),
+      qtySpan=document.getElementById("qty"),
+      dailyDiv=document.getElementById("dailySummary");
+
+/* Load categories */
+Object.keys(MENU).forEach(c=>{
+  let o=document.createElement("option");
+  o.value=c;o.textContent=c;category.appendChild(o);
+});
+category.onchange=loadItems;
+loadItems();
+
+function loadItems(){
+  item.innerHTML="";
+  Object.keys(MENU[category.value]).forEach(i=>{
+    let o=document.createElement("option");
+    o.value=i;o.textContent=i;item.appendChild(o);
+  });
+}
+function increase(){qty++;qtySpan.textContent=qty}
+function decrease(){if(qty>1)qty--;qtySpan.textContent=qty}
+
+function addItem(){
+  let price=MENU[category.value][item.value];
+  let amount=price*qty;
+  list.innerHTML+=`<li>${item.value} × ${qty} = ₹${amount}</li>`;
+  todayTotal+=amount;
+  totalSpan.textContent=todayTotal;
+  saveDaily(amount);
+  qty=1;qtySpan.textContent=1;
+  renderDaily();
+}
+
+function saveDaily(amount){
+  let data=JSON.parse(localStorage.getItem("dailyHistory")||"{}");
+  data[today]=(data[today]||0)+amount;
+  localStorage.setItem("dailyHistory",JSON.stringify(data));
+}
+
+function renderDaily(){
+  let data=JSON.parse(localStorage.getItem("dailyHistory")||"{}");
+  dailyDiv.innerHTML="";
+  Object.keys(data).sort().reverse().forEach(d=>{
+    dailyDiv.innerHTML+=`<div><span>${d}</span><strong>₹ ${data[d]}</strong></div>`;
+  });
+}
+renderDaily();
+
+function newDay(){
+  list.innerHTML="";
+  todayTotal=0;
+  totalSpan.textContent=0;
+}
+
+/* Dark mode */
+const toggle=document.getElementById("darkToggle");
+if(localStorage.getItem("dark"))document.body.classList.add("dark");
+toggle.onclick=()=>{
+  document.body.classList.toggle("dark");
+  localStorage.setItem("dark",document.body.classList.contains("dark"));
+};
+</script>
+
+</body>
+</html>
